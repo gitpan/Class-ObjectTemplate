@@ -6,7 +6,7 @@ use Carp;
 
 @ISA = qw(Exporter);
 @EXPORT = qw(attributes);
-$VERSION = 0.3;
+$VERSION = 0.4;
 
 $DEBUG = 0; # assign 1 to it to see code generated on the fly 
 
@@ -194,11 +194,10 @@ sub _define_accessor {
 
 1;
 __END__
-# Below is stub documentation for your module. You better edit it!
-
 =head1 NAME
 
-Class::ObjectTemplate - Perl extension for blah blah blah
+Class::ObjectTemplate - Perl extension for an optimized template
+builder base class.
 
 =head1 SYNOPSIS
 

@@ -1,5 +1,11 @@
 Revision history for Perl extension Class::ObjectTemplate.
 
+0.4  Sun Jan 14 10:14:54 MST 2001
+        - added README
+
+0.3  Sat Jan 13 17:07:54 MST 2001
+        - added POD
+
 0.2  Sat Jan 13 17:07:54 MST 2001
         - Fixed inheritance bug
 	- changed free list to be a stack
