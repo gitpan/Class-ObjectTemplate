@@ -8,21 +8,29 @@ no strict 'refs';
 
 @ISA = qw(Exporter);
 @EXPORT = qw(attributes);
-$VERSION = 0.5;
+$VERSION = 0.6;
 
-$DEBUG = 0; # assign 1 to it to see code generated on the fly 
+$DEBUG = 0; # assign 1 to it to see code generated on the fly
 
-# Create accessor functions, and new()
+# Create accessor functions
 sub attributes {
   my ($pkg) = caller;
-  croak "Error: attributes() invoked multiple times" 
+
+  croak "Error: attributes() invoked multiple times"
     if scalar @{"${pkg}::_ATTRIBUTES_"};
 
-  @{"${pkg}::_ATTRIBUTES_"} = @_;
-  my $code = "";
+  #
+  # We must define a constructor for the class, because we must
+  # declare the variables used for the free list, $_max_id and
+  # @_free. If we don't, we will get compile errors for any class
+  # that declares itself a subclass of any Class::ObjectTemplate
+  # class
+  #
+  my $code .= _define_constructor($pkg);
 
-  # handle the constructor first to set up the global variables
-  $code .= _define_constructor($pkg);
+  # _defined_constructor() may have added attributes that we inherited
+  # from any superclasses now add the new attributes
+  push(@{"${pkg}::_ATTRIBUTES_"},@_);
 
   # now define any accessor methods
   print STDERR "Creating methods for $pkg\n" if $DEBUG;
@@ -41,14 +49,14 @@ sub attributes {
   }
   eval $code;
   if ($@) {
-    die  "ERROR defining constructor and attributes for '$pkg':"
-       . "\n\t$@\n" 
+    die  "ERROR defining constructor and attributes for '$pkg':\n"
+       . "\t$@\n"
        . "-----------------------------------------------------"
        . $code;
   }
 }
 
-# $obj->set_attributes (name => 'John', age => 23);     
+# $obj->set_attributes (name => 'John', age => 23);
 # Or, $obj->set_attributes (['name', 'age'], ['John', 23]);
 sub set_attributes {
   my $obj = shift;
@@ -74,69 +82,42 @@ sub set_attributes {
 sub get_attributes {
   my $obj = shift;
   my (@retval);
-  map {$obj->$_()} @_;
+  return map {$obj->$_()} @_;
 }
 
 sub get_attribute_names {
   my $pkg = shift;
   $pkg = ref($pkg) if ref($pkg);
-  my @result = @{"${pkg}::_ATTRIBUTES_"};
-  if (defined (@{"${pkg}::ISA"})) {
-    foreach my $base_pkg (@{"${pkg}::ISA"}) {
-      push (@result, get_attribute_names($base_pkg));
-    }
-  }
-  @result;
+  return @{"${pkg}::_ATTRIBUTES_"};
 }
 
 sub set_attribute {
   my ($obj, $attr_name, $attr_value) = @_;
   my ($pkg) = ref($obj);
-  $ {"${pkg}::_$attr_name";}[$$obj] = $attr_value;
+  return $ {"${pkg}::_$attr_name"}[$$obj] = $attr_value;
 }
 
 sub get_attribute {
   my ($obj, $attr_name, $attr_value) = @_;
   my ($pkg) = ref($obj);
-  return $ {"${pkg}::_$attr_name";}[$$obj];
+  return $ {"${pkg}::_$attr_name"}[$$obj];
 }
 
 sub DESTROY {
-    # release id back to free list
-  my $obj = $_[0];
+  # release id back to free list
+  my $obj = shift;
   my $pkg = ref($obj);
   my $inst_id = $$obj;
+
   # Release all the attributes in that row
   my (@attributes) = get_attribute_names($pkg);
   foreach my $attr (@attributes) {
     undef $ {"${pkg}::_$attr"}[$inst_id];
   }
 
-  # JES -- need to deal with inheritance. The free list may be
-  # maintained in a super class's namespace
-  my $free;
-  my $_pkg = find_free($pkg);
-  croak "Couldn't find free list for $pkg" unless defined $_pkg;
-  $free = \@{"${_pkg}::_free"};
-
-  push(@{$free},$inst_id);
-}
-
-# JES -- needed to make the free list work with inheritance
-# returns the pkg name if $_max_id is defined in this namespace
-# if $_max_id is defined, so is @_free
-sub find_free {
-  my $pkg = shift;
-  return $pkg if defined $ {"${pkg}::_max_id"};
-
-  my $free_list;
-  if (defined (@{"${pkg}::ISA"})) {
-    foreach my $base_pkg (@{"${pkg}::ISA"}) {
-      $free_list = find_free($base_pkg);
-      last if defined $free_list;
-    }
-  }
-  return $free_list;
+  # The free list is *always* maintained independently by each base
+  # class
+  push(@{"${pkg}::_free"},$inst_id);
 }
 
 sub initialize { }; # dummy method, if subclass doesn't define one.
@@ -146,7 +127,15 @@ sub initialize { }; # dummy method, if subclass doesn't define one.
 sub _define_constructor {
   my $pkg = shift;
   my $free = "\@${pkg}::_free";
-  my $code = qq {
+
+  # inherit any attributes from our superclasses
+  if (defined (@{"${pkg}::ISA"})) {
+    foreach my $base_pkg (@{"${pkg}::ISA"}) {
+      push (@{"${pkg}::_ATTRIBUTES_"}, get_attribute_names($base_pkg));
+    }
+  }
+
+  my $code = <<"CODE";
     package $pkg;
     use vars qw(\$_max_id \@_free);
     sub new {
@@ -163,45 +152,83 @@ sub _define_constructor {
       return undef if \$rc == -1;
       \$obj;
     }
-  };
-  $code;
+
+    # Set up the free list, and the ID counter
+    \@_free = ();
+    \$_max_id = 0;
+
+CODE
+  return $code;
 }
 
 sub _define_accessor {
   my ($pkg, $attr) = @_;
 
-    # This code creates an accessor method for a given
-    # attribute name. This method  returns the attribute value 
-    # if given no args, and modifies it if given one arg.
-    # Either way, it returns the latest value of that attribute
+  # This code creates an accessor method for a given
+  # attribute name. This method  returns the attribute value
+  # if given no args, and modifies it if given one arg.
+  # Either way, it returns the latest value of that attribute
 
-
-    # JES -- fixed bug so that inherited classes worked
-
-    # JES -- simplified the free list to be a stack, and added a 
-    # separate $_max_id variable
-
-    # qq makes this block behave like a double-quoted string
-  my $code = qq{
+  my $code = <<"CODE";
     package $pkg;
     sub $attr {                                      # Accessor ...
       my \$name = ref(\$_[0]) . "::_$attr";
          \@_ > 1 ? \$name->[\${\$_[0]}] = \$_[1]  # set
                  : \$name->[\${\$_[0]}];          # get
     }
-  };
-  $code .= qq{
-    if (!defined \$_max_id) {
-      # Set up the free list, and the ID counter
-      \@_free = ();
-      \$_max_id = 0;
-    };
-  };
-  $code;
+CODE
+  return $code;
 }
 
 1;
 __END__
+### =head1 IMPLEMENTATION DETAILS
+###
+### This section is intended for the maintainers of Class::ObjectTemplate
+### and not the users, and this is why it is not include in the POD.
+###
+### This section was added to describe pieces that were added after
+### Sriram\'s original code.
+###
+### =head2 INHERITANCE
+###
+### There were some problems with inheritance in the original version
+### described by Sriram, with how attribute values were stored, and with
+### how the free list was maintained.
+###
+### Each subclass must define its own constructor, C<new()>. This is why
+### B<every> class that subclasses from another must call C<attributes()>
+### even if it doesn\'t define any new attributes. If this does not
+### happen, then the class will not properly define its attribute list or
+### its free list.
+###
+### Each subclass maintains its own attribute list, stored in the variable
+### C<@_ATTRIBUTES_>, and all attributes defined by any superclasses will
+### be copied into the subclass attribute lists by the
+### _define_constructor() method.
+###
+### =head2 FREE LIST
+###
+### Every class maintains two important variables that are used by the
+### class constructor method, C<new()> to assign object id\'s to newly
+### created objects, $_max_id and @_free. Each subclass maintains its own
+### copy of each of these.
+###
+### =over
+###
+### =item @_free
+###
+### Is the free list which tracks scalar values that were previously but
+### are now free to be re-assigned to new objects. 
+###
+###
+### =item $_max_id
+###
+### Tracks the largest object id used. If the free list is empty, then
+### C<new()> assigns a brand new object id by incrementing $_max_id.
+###
+### =back
+
 =head1 NAME
 
 Class::ObjectTemplate - Perl extension for an optimized template
@@ -216,6 +243,41 @@ builder base class.
 
   attributes('one', 'two', 'three');
 
+  # initialize will be called by new()
+  sub initialize {
+    my $self = shift;
+    $self->three(1) unless defined $self->three();
+  }
+
+  use Foo;
+  $foo = Foo->new();
+
+  # store 27 in the 'one' attribute
+  $foo->one(27);
+
+  # check the value in the 'two' attribute
+  die "should be undefined" if defined $foo->two();
+
+  # set using the utility method
+  $foo->set_attribute('one',27);
+
+  # check using the utility method
+  $two = $foo->get_attribute('two');
+
+  # set more than one attribute using the named parameter style
+  $foo->set_attributes('one'=>27, 'two'=>42);
+
+  # or using array references
+  $foo->set_attributes(['one','two'],[27,42]);
+
+  # get more than one attribute
+  @list = $foo->get_attributes('one', 'two');
+
+  # get a list of all attributes known by an object
+  @attrs = $foo->get_attribute_names();
+
+  # check that initialize() is called properly
+  die "initialize didn't set three()" unless $foo->three();
 
 =head1 DESCRIPTION
 
@@ -227,7 +289,15 @@ Programming" by Sriram Srinivasam.
 
 =head2 EXPORT
 
-attributes()
+attributes(@name_list)
+
+This method creates a shared setter and getter methods for every name
+in the list. The method also creates the class constructor, C<new()>.
+
+B<WARNING>: This method I<must> be invoked within the module for every
+class that inherits from Class::ObjectTemplate, even if that class
+defines no attributes. For a class defining no new attributes, it
+should invoke C<attributes()> with no arguments.
 
 =head1 AUTHOR
 
@@ -240,5 +310,7 @@ Fixes and CPAN module by Jason E. Stewart (jason@openinformatics.com)
 http://www.oreilly.com/catalog/advperl/
 
 perl(1).
+
+Class::ObjectTemplate::DB
 
 =cut

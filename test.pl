@@ -9,7 +9,6 @@
 BEGIN { $| = 1; print "1..14\n"; }
 END {print "not ok 1\n" unless $loaded;}
 # use blib;
-use Class::ObjectTemplate;
 $loaded = 1;
 $i=1;
 result($loaded);
@@ -69,6 +68,13 @@ attributes('one', 'two');
 package BazINC;
 use Class::ObjectTemplate;
 @ISA = qw(Baz);
+attributes();
+
+package BazINC2;
+use Class::ObjectTemplate;
+@ISA = qw(Baz);
+
+attributes('three','four');
 
 1;
 EOF
@@ -95,10 +101,9 @@ result(scalar @Baz::_ATTRIBUTES_ == 2);
 #
 $baz_inc = new BazINC();
 
-# test that @Baz::_ATTRIBUTES_ is not being set. This is to check a
-# bug where inherited classes didn't get their attributes properly
-# initialized
-result(scalar @BazINC::_ATTRIBUTES_ == 0);
+# test that @BazINC::_ATTRIBUTES_ *is* being set.
+# each base class now maintains all its inherited attributes
+result(scalar @BazINC::_ATTRIBUTES_ == 2);
 
 $baz_inc->one(34);
 result($baz_inc->one() == 34);
@@ -124,14 +129,34 @@ result($baz_inc->one() != $baz->one());
 
 #
 # test that $baz_inc->DESTROY properly modifies that @_free array in
-# Baz and does not add one to BazINC
-$old_free = scalar @Baz::_free;
+# BazINC and does not add one to Baz
+$old_free = scalar @BazINC::_free;
 $baz_inc->DESTROY();
-result(! scalar @BazINC::_free);
+result(! scalar @Baz::_free);
 
-result($old_free != scalar @Baz::_free);
+result($old_free != scalar @BazINC::_free);
 
 END { 1 while unlink 'Baz.pm'}
+
+#
+# End of v0.1 bug tests
+#
+
+#
+# Now test inheritance from a class that defines new attributes
+#
+$baz_inc2 = BazINC2->new();
+$baz_inc2->one(34);
+result($baz_inc2->one() == 34);
+
+$baz_inc2->three(34);
+result($baz_inc2->three() == 34);
+
+$old_free = scalar @BazINC2::_free;
+$baz_inc2->DESTROY();
+result(! scalar @Baz::_free);
+
+result($old_free != scalar @BazINC2::_free);
 
 BEGIN {
   open(F,">Bar.pm") or die "Couldn't write Bar.pm";
