@@ -6,7 +6,7 @@
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..14\n"; }
+BEGIN { $| = 1; print "1..23\n"; }
 END {print "not ok 1\n" unless $loaded;}
 # use blib;
 $loaded = 1;
@@ -216,6 +216,20 @@ result($f->get_attribute('one') == $value);
 
 # check that the subroutine is still called
 result($f->one() == 1);
+
+# test get_attributes()
+$f->two(24);
+$f->three(24);
+my @list = ($f->two,$f->three);
+my @list2 = $f->get_attributes('two','three');
+my $equal = 1;
+for (my $i=0;$i<scalar @list;$i++) {
+  if ($list[$i] != $list2[$i]) {
+    $equal = 0;
+    last;
+  }
+}
+result($equal);
 
 END { 1 while unlink 'Foo2.pm'}
 

@@ -8,7 +8,7 @@ no strict 'refs';
 
 @ISA = qw(Exporter);
 @EXPORT = qw(attributes);
-$VERSION = 0.6;
+$VERSION = 0.7;
 
 $DEBUG = 0; # assign 1 to it to see code generated on the fly
 
@@ -81,8 +81,9 @@ sub set_attributes {
 # @attrs = $obj->get_attributes (qw(name age));
 sub get_attributes {
   my $obj = shift;
+  my $pkg = ref($obj);
   my (@retval);
-  return map {$obj->$_()} @_;
+  return map {$ {"${pkg}::_$_"}[$$obj]} @_;
 }
 
 sub get_attribute_names {

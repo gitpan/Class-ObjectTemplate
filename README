@@ -17,7 +17,6 @@ test.pl). There are some inheritance problems with this version.
 Version 0.2 fixes the inheritance problems. Later versions add nicer
 POD documentation, and various code improvements.
 
-
 Verifying the Release 
 ---------------------
 
