@@ -3,10 +3,12 @@ require Exporter;
 
 use vars qw(@ISA @EXPORT $VERSION $DEBUG);
 use Carp;
+use strict;
+no strict 'refs';
 
 @ISA = qw(Exporter);
 @EXPORT = qw(attributes);
-$VERSION = 0.4;
+$VERSION = 0.5;
 
 $DEBUG = 0; # assign 1 to it to see code generated on the fly 
 
@@ -18,6 +20,11 @@ sub attributes {
 
   @{"${pkg}::_ATTRIBUTES_"} = @_;
   my $code = "";
+
+  # handle the constructor first to set up the global variables
+  $code .= _define_constructor($pkg);
+
+  # now define any accessor methods
   print STDERR "Creating methods for $pkg\n" if $DEBUG;
   foreach my $attr (@_) {
     print STDERR "  defining method $attr\n" if $DEBUG;
@@ -28,10 +35,10 @@ sub attributes {
     # If the accessor is already present, give a warning
     if (UNIVERSAL::can($pkg,"$attr")) {
       carp "$pkg already has method: $attr";
+    } else {
+      $code .= _define_accessor ($pkg, $attr);
     }
-    $code .= _define_accessor ($pkg, $attr, $lookup);
   }
-  $code .= _define_constructor($pkg);
   eval $code;
   if ($@) {
     die  "ERROR defining constructor and attributes for '$pkg':"
@@ -100,7 +107,7 @@ sub DESTROY {
   my $pkg = ref($obj);
   my $inst_id = $$obj;
   # Release all the attributes in that row
-  local (@attributes) = get_attribute_names($pkg);
+  my (@attributes) = get_attribute_names($pkg);
   foreach my $attr (@attributes) {
     undef $ {"${pkg}::_$attr"}[$inst_id];
   }
@@ -141,6 +148,7 @@ sub _define_constructor {
   my $free = "\@${pkg}::_free";
   my $code = qq {
     package $pkg;
+    use vars qw(\$_max_id \@_free);
     sub new {
       my \$class = shift;
       my \$inst_id;
@@ -183,7 +191,7 @@ sub _define_accessor {
     }
   };
   $code .= qq{
-    if (!defined \$max_id) {
+    if (!defined \$_max_id) {
       # Set up the free list, and the ID counter
       \@_free = ();
       \$_max_id = 0;

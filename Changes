@@ -1,5 +1,11 @@
 Revision history for Perl extension Class::ObjectTemplate.
 
+0.5  Mon Jan  7 14:17:32 MST 2002
+	- added README to MANIFEST
+	- fixed bug that over-rode method if an attribute was defined
+	  with the same name 
+	- now has use strict
+
 0.4  Sun Jan 14 10:14:54 MST 2001
         - added README
 

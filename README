@@ -1,0 +1,35 @@
+Class::ObjectTemplate
+---------------------
+
+This package contains Perl extension for an optimized template builder
+base class.
+
+This module was first described in the O'Reilly book "Advanced Perl
+Programming" by Sriram Srinivasan. 
+
+Versions
+--------
+
+The original code from the book is available as version 0.1. Only
+minor changes were made (mainly addition of Makefile.PL and
+test.pl). There are some inheritance problems with this version.
+
+Version 0.2 fixes the inheritance problems. Later versions add nicer
+POD documentation.
+
+Authors
+-------
+
+Copyright 1998-2001 Jason E. Stewart
+Copyright 1997 Sriram Srinivasan
+
+License
+-------
+
+This library is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
+
+Bugs
+----
+
+Please report and bugs to jason@openinformatics.com

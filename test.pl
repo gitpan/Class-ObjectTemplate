@@ -12,7 +12,7 @@ END {print "not ok 1\n" unless $loaded;}
 use Class::ObjectTemplate;
 $loaded = 1;
 $i=1;
-print "ok ", $i++, "\n";
+result($loaded);
 
 ######################### End of black magic.
 
@@ -156,6 +156,43 @@ eval "require Bar;";
 result($@);
 
 END { 1 while unlink 'Bar.pm'}
+
+#
+# test that attributes works properly when a subroutine
+# of the same name already exists
+#
+BEGIN {
+  open(F,">Foo2.pm") or die "Couldn't write Foo2.pm";
+  print F <<'EOT';
+package Foo2;
+use Class::ObjectTemplate;
+@ISA = qw(Class::ObjectTemplate);
+attributes(one, two, three);
+sub one {return 1;}
+
+1;
+EOT
+  close(F);
+}
+require Foo2;
+
+my $f = Foo2->new();
+
+# the original subroutine gets called
+result($f->one() == 1);
+
+# but the attribute is undefined
+result(!defined $f->get_attribute('one'));
+
+# set the attribute and check its value
+my $value = 5;
+$f->set_attribute('one',$value);
+result($f->get_attribute('one') == $value);
+
+# check that the subroutine is still called
+result($f->one() == 1);
+
+END { 1 while unlink 'Foo2.pm'}
 
 sub result {
   my $cond = shift;
