@@ -1,0 +1,9 @@
+Revision history for Perl extension Class::ObjectTemplate.
+
+0.1  Sat Jan 13 17:07:54 MST 2001
+	- version checked in to CPAN by jason@openinformatics.com.
+	- all original code (with new namespace, Class::ObjectTemplate)
+	- added test.pl (which has 4 tests which fail), Changes,
+	  Makefile.PL, MANIFEST
+
+
