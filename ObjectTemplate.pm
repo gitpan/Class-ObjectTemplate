@@ -6,7 +6,7 @@ use Carp;
 
 @ISA = qw(Exporter);
 @EXPORT = qw(attributes);
-$VERSION = 0.2;
+$VERSION = 0.3;
 
 $DEBUG = 0; # assign 1 to it to see code generated on the fly 
 
@@ -193,4 +193,45 @@ sub _define_accessor {
 }
 
 1;
+__END__
+# Below is stub documentation for your module. You better edit it!
 
+=head1 NAME
+
+Class::ObjectTemplate - Perl extension for blah blah blah
+
+=head1 SYNOPSIS
+
+  package Foo;
+  use Class::ObjectTemplate;
+  require Exporter;
+  @ISA = qw(Class::ObjectTemplate Exporter);
+
+  attributes('one', 'two', 'three');
+
+
+=head1 DESCRIPTION
+
+Class::ObjectTemplate is a utility class to assist in the building of
+other Object Oriented Perl classes.
+
+It was described in detail in the O\'Reilly book, "Advanced Perl
+Programming" by Sriram Srinivasam. 
+
+=head2 EXPORT
+
+attributes()
+
+=head1 AUTHOR
+
+Original code by Sriram Srinivasam.
+
+Fixes and CPAN module by Jason E. Stewart (jason@openinformatics.com)
+
+=head1 SEE ALSO
+
+http://www.oreilly.com/catalog/advperl/
+
+perl(1).
+
+=cut
