@@ -120,7 +120,7 @@ result(scalar @BazINC::_one);
 # even though their attribute arrays are in Baz's namespace
 $baz->one(45);
 $baz_inc->one(56);
-result($baz_inc->one() == $baz->one());
+result($baz_inc->one() != $baz->one());
 
 #
 # test that $baz_inc->DESTROY properly modifies that @_free array in
@@ -131,7 +131,31 @@ result(! scalar @BazINC::_free);
 
 result($old_free != scalar @Baz::_free);
 
-END { 1 while unlink 'Foo.pm'; 1 while unlink 'Baz.pm'}
+END { 1 while unlink 'Baz.pm'}
+
+BEGIN {
+  open(F,">Bar.pm") or die "Couldn't write Bar.pm";
+
+  print F <<'EOF';
+package Bar;
+use Class::ObjectTemplate;
+use subs qw(undefined);
+@ISA = qw(Class::ObjectTemplate);
+attributes('one', 'two');
+attributes('three');
+
+1;
+EOF
+  close(F);
+}
+
+#
+# Test that we get an error trying to call attributes() twice
+#
+eval "require Bar;";
+result($@);
+
+END { 1 while unlink 'Bar.pm'}
 
 sub result {
   my $cond = shift;
